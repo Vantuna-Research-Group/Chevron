@@ -3,7 +3,7 @@
    A new version does not take over a running app. It waits until every
    tab is closed, so nobody gets swapped mid-station. */
 
-const APP_VERSION = "2026-09-13c";
+const APP_VERSION = "2026-09-13d";
 const CACHE = "fieldnotes-" + APP_VERSION;
 
 const SHELL = [
@@ -33,7 +33,11 @@ self.addEventListener("activate", e=>{
 
 self.addEventListener("message", e=>{
   if(e.data === "version"){
-    e.source.postMessage({version: APP_VERSION});
+    const msg = {version: APP_VERSION};
+    // The page sends a MessagePort. Replying on e.source instead would
+    // go to the document's message handler and never reach that port.
+    if(e.ports && e.ports[0]) e.ports[0].postMessage(msg);
+    else if(e.source) e.source.postMessage(msg);
   }
   if(e.data === "activate-update"){
     self.skipWaiting();

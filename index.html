@@ -657,8 +657,13 @@ function getFix(silent){
         resolve(fix);
       },
       err=>{
-        if(!silent) alert("Could not get a position: " + err.message +
-          "\n\nLocation needs the page served over https. It does not work from a file opened directly.");
+        if(!silent){
+          const why = err.code === 1
+            ? "Location is blocked for this site. On iPhone check Settings, Privacy & Security, Location Services, then Safari Websites. If you added this to the home screen, its permission is separate from Safari."
+            : err.code === 2 ? "No position available. Try again with a clearer view of the sky."
+            : "Timed out before getting a fix.";
+          alert("Could not get a position.\n\n" + why);
+        }
         resolve(null);
       },
       {enableHighAccuracy:true, timeout:15000, maximumAge:10000}
@@ -1124,8 +1129,14 @@ function openData(){
       : "Leaves music alone. Only fires if the app stays on screen."));
 
   const vb = document.getElementById("verBox");
-  vb.textContent = "App version " + (swVersion || "not cached for offline use") +
-                   (navigator.onLine ? "" : ". Offline.");
+  askVersion();
+  let status;
+  if(swError) status = "Offline cache failed: " + swError;
+  else if(!swReg) status = "Offline cache still registering. Reopen this sheet in a moment.";
+  else if(!navigator.serviceWorker.controller)
+    status = "Offline cache installed. Close the app fully and reopen it to finish.";
+  else status = "Ready for offline use. Version " + (swVersion || "checking");
+  vb.textContent = status + (navigator.onLine ? "" : " Currently offline.");
   if(swWaiting){
     const u = document.createElement("button");
     u.className = "listbtn";
@@ -1277,11 +1288,24 @@ function toast(msg){
    Offline shell. Registering the worker is what makes the app open
    at a site with no signal.
 ------------------------------------------------------------------ */
-let swVersion = null, swWaiting = null;
+let swReg = null, swVersion = null, swWaiting = null, swError = null;
 
-if("serviceWorker" in navigator){
+function askVersion(){
+  const c = navigator.serviceWorker && navigator.serviceWorker.controller;
+  if(!c) return;
+  const ch = new MessageChannel();
+  ch.port1.onmessage = ev=>{ swVersion = ev.data && ev.data.version; };
+  c.postMessage("version", [ch.port2]);
+}
+
+if(!("serviceWorker" in navigator)){
+  swError = "this browser has no service worker support";
+} else if(location.protocol !== "https:" && location.hostname !== "localhost"){
+  swError = "needs https, this page is " + location.protocol;
+} else {
   navigator.serviceWorker.register("./sw.js").then(reg=>{
-    if(reg.waiting) swWaiting = reg.waiting;
+    swReg = reg;
+    if(reg.waiting && navigator.serviceWorker.controller) swWaiting = reg.waiting;
     reg.addEventListener("updatefound", ()=>{
       const nw = reg.installing;
       if(!nw) return;
@@ -1291,14 +1315,13 @@ if("serviceWorker" in navigator){
         }
       });
     });
-    navigator.serviceWorker.ready.then(()=>{
-      if(navigator.serviceWorker.controller){
-        const ch = new MessageChannel();
-        ch.port1.onmessage = ev=>{ swVersion = ev.data.version; };
-        navigator.serviceWorker.controller.postMessage("version", [ch.port2]);
-      }
-    });
-  }).catch(()=>{});
+    askVersion();
+  }).catch(err=>{ swError = err.message; });
+
+  // On a first visit the worker takes control a moment after the page
+  // loads, so ask again once it does.
+  navigator.serviceWorker.addEventListener("controllerchange", askVersion);
+  navigator.serviceWorker.ready.then(()=>setTimeout(askVersion, 300));
 }
 
 loadDraft();
