@@ -377,6 +377,30 @@ let state = load() || {
 };
 if(!state.deviceId) state.deviceId = "P" + Math.random().toString(36).slice(2,6).toUpperCase();
 if(!state.roster || !state.roster.length) state.roster = ROSTER.slice();
+
+/* The roster lives in storage, so editing the ROSTER constant above does
+   nothing on a phone that has already run the app. This reconciles the
+   two on every load: built-in names added to the constant appear, built-in
+   names removed from it disappear, and names typed in on the phone are
+   left alone. state.builtins records which names were built in last time.
+   Phones that predate this field fall back to the original ten. */
+const LEGACY_ROSTER = ["J. Williams","J. Peria","B. Power","J. Vitagliano","D. Ramirez",
+                       "C. Craig","M. Valdez","S. Hernandez","G. Brundage","M. Barajas"];
+let RETIRED = [];
+(function reconcileRoster(){
+  const was = state.builtins || LEGACY_ROSTER;
+  const gone = was.filter(p=>!ROSTER.includes(p));
+  RETIRED = gone.slice();
+  gone.forEach(p=>{
+    const i = state.roster.indexOf(p);
+    if(i >= 0) state.roster.splice(i,1);
+    const j = state.crew.indexOf(p);
+    if(j >= 0) state.crew.splice(j,1);
+  });
+  ROSTER.forEach(p=>{ if(!state.roster.includes(p)) state.roster.push(p); });
+  state.builtins = ROSTER.slice();
+  save();
+})();
 if(!state.custom) state.custom = [];
 if(!state.tides) state.tides = {};
 if(!state.refCoords) state.refCoords = {};
@@ -1272,7 +1296,10 @@ function importJson(e){
         } else { state.visits[k] = v; added++; }
       });
       (inc.custom||[]).forEach(s=>{ if(!state.custom.includes(s)) state.custom.push(s); });
-      (inc.roster||[]).forEach(p=>{ if(!state.roster.includes(p)) state.roster.push(p); });
+      (inc.roster||[]).forEach(p=>{
+        if(RETIRED.includes(p)) return;   // do not resurrect a retired name
+        if(!state.roster.includes(p)) state.roster.push(p);
+      });
       save(); openData(); render();
       toast(added + " stations added" + (clashes.length ? ", " + clashes.length + " kept as mine" : ""));
       if(clashes.length) alert("These stations exist on both phones with different values. This phone's version was kept:\n\n" + clashes.join("\n"));
