@@ -3,7 +3,7 @@
    A new version does not take over a running app. It waits until every
    tab is closed, so nobody gets swapped mid-station. */
 
-const APP_VERSION = "2026-09-13h";
+const APP_VERSION = "2026-09-13j";
 const CACHE = "fieldnotes-" + APP_VERSION;
 
 const SHELL = [

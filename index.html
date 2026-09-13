@@ -543,9 +543,34 @@ function render(){
   sg.innerHTML = "";
   const visible = ALWAYS.concat(state.shown);
   visible.forEach(sp=>{
-    sg.appendChild(stepperRow(sp, "", draft.counts[sp] || 0, 0, 9999, 1, v=>{
+    const row = stepperRow(sp, "", draft.counts[sp] || 0, 0, 9999, 1, v=>{
       if(v) draft.counts[sp] = v; else delete draft.counts[sp];
-    }));
+    });
+    // The two always-listed species stay. Anything you added can be taken
+    // off, but only while nothing saved depends on it.
+    if(!ALWAYS.includes(sp)){
+      const heldBy = Object.values(state.visits)
+        .filter(v => (v.counts || {})[sp] > 0)
+        .map(v => v.station);
+      if(!heldBy.length){
+        const x = document.createElement("button");
+        x.textContent = "✕";
+        x.setAttribute("aria-label", "Remove " + sp + " from the list");
+        x.style.cssText = "margin-left:8px;width:40px;height:44px;border:1px solid var(--line);"+
+                          "border-radius:9px;background:var(--card);color:var(--muted);font-size:16px";
+        x.onclick = ()=>{
+          const n = draft.counts[sp] || 0;
+          if(n > 0 && !confirm("Remove "+sp+"? The count of "+n+" on this unsaved station will be cleared."))
+            return;
+          delete draft.counts[sp];
+          const i = state.shown.indexOf(sp);
+          if(i >= 0) state.shown.splice(i,1);
+          save(); render();
+        };
+        row.appendChild(x);
+      }
+    }
+    sg.appendChild(row);
   });
   const addWrap = document.createElement("div");
   addWrap.className = "chips";
@@ -1089,11 +1114,13 @@ function openSpecies(){
     if(!state.shown.includes(v)) state.shown.push(v);
     save(); render(); openSpecies();
   }));
-  list.appendChild(customList(state.custom, sp=>{
+  // Same rule as the sightings list: a species stays while saved data uses it.
+  const removable = state.custom.filter(sp=>
+    !Object.values(state.visits).some(v => (v.counts || {})[sp] > 0));
+  list.appendChild(customList(removable, sp=>{
     state.custom.splice(state.custom.indexOf(sp),1);
     const i = state.shown.indexOf(sp);
     if(i>=0) state.shown.splice(i,1);
-    Object.values(state.visits).forEach(v=>{ if(v.counts) delete v.counts[sp]; });
     if(draft && draft.counts) delete draft.counts[sp];
     save(); render(); openSpecies();
   }, "species"));
