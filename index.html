@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Field Notes">
+<meta name="theme-color" content="#10614A">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png">
+<title>Field Notes</title>
+<style>
+  :root{
+    --paper:#EEF1EF;
+    --card:#FFFFFF;
+    --ink:#101A18;
+    --muted:#5C6B67;
+    --line:#CDD6D2;
+    --kelp:#10614A;
+    --kelp-soft:#E2EDE8;
+    --amber:#9A5B00;
+    --amber-soft:#F6ECDB;
+    --tap:52px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:17px;
+    line-height:1.4;
+    -webkit-text-size-adjust:100%;
+    padding-bottom:110px;
+  }
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;border:none;background:none}
+  .wrap{max-width:620px;margin:0 auto;padding:0 14px}
+
+  /* ---- header ---- */
+  header{
+    position:sticky;top:0;z-index:20;
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    padding-top:env(safe-area-inset-top);
+  }
+  .hrow{display:flex;align-items:center;gap:10px;padding:8px 0 6px}
+  .hrow input[type=date]{
+    background:transparent;border:none;font-weight:600;padding:4px 0;min-width:120px;
+  }
+  .hbtn{
+    margin-left:auto;display:flex;gap:6px;
+  }
+  .hbtn button{
+    border:1px solid var(--line);background:var(--card);
+    border-radius:8px;padding:8px 11px;font-size:14px;font-weight:600;
+  }
+  .rail{
+    display:flex;gap:6px;overflow-x:auto;padding:0 0 10px;
+    scrollbar-width:none;
+  }
+  .rail::-webkit-scrollbar{display:none}
+  .rail button{
+    flex:0 0 auto;border:1px solid var(--line);background:var(--card);
+    border-radius:999px;padding:7px 13px;font-size:14px;font-weight:600;
+    color:var(--muted);white-space:nowrap;
+  }
+  .rail button.done{background:var(--kelp-soft);border-color:#A9CFC1;color:var(--kelp)}
+  .rail button.here{background:var(--ink);border-color:var(--ink);color:#fff}
+
+  /* ---- station heading: the one loud element ---- */
+  .station{padding:16px 0 4px}
+  .station h1{
+    margin:0;font-size:40px;line-height:1;letter-spacing:-0.02em;font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .station .alias{margin:6px 0 0;color:var(--muted);font-size:15px}
+  .station .alias b{color:var(--ink);font-weight:600}
+
+  /* ---- sections ---- */
+  section{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    margin:12px 0;overflow:hidden;
+  }
+  .shead{
+    display:flex;align-items:baseline;gap:8px;
+    padding:12px 14px 4px;
+  }
+  .shead h2{margin:0;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.01em}
+  .shead .hint{margin-left:auto;font-size:13px;color:var(--muted)}
+  .sbody{padding:6px 14px 14px}
+
+  .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #E7EBE9}
+  .row:first-child{border-top:none}
+  .row .lab{flex:1;min-width:0}
+  .row .lab small{display:block;color:var(--muted);font-size:13px}
+
+  /* steppers */
+  .step{display:flex;align-items:center;gap:2px}
+  .step button{
+    width:var(--tap);height:44px;border:1px solid var(--line);background:var(--card);
+    font-size:22px;font-weight:600;color:var(--kelp);
+  }
+  .step button:first-child{border-radius:9px 0 0 9px}
+  .step button:last-child{border-radius:0 9px 9px 0}
+  .step button:active{background:var(--kelp-soft)}
+  .step .val{
+    min-width:56px;height:44px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-variant-numeric:tabular-nums;font-size:19px;
+  }
+  .step .val.zero{color:#9AA8A3;font-weight:600}
+
+  /* yes / no */
+  .yn{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .yn button{padding:0 16px;height:44px;font-weight:600;color:var(--muted);min-width:60px}
+  .yn button+button{border-left:1px solid var(--line)}
+  .yn button.on{background:var(--ink);color:#fff}
+  .yn button.on.flag{background:var(--amber);color:#fff}
+
+  /* chips */
+  .chips{display:flex;flex-wrap:wrap;gap:7px;padding-top:6px}
+  .chips button{
+    border:1px solid var(--line);background:var(--card);border-radius:9px;
+    padding:10px 13px;font-size:15px;font-weight:600;color:var(--muted);
+  }
+  .chips button.on{background:var(--kelp);border-color:var(--kelp);color:#fff}
+  .chips button.add{color:var(--kelp);border-style:dashed}
+
+  textarea{
+    width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;
+    min-height:64px;resize:vertical;background:var(--card);
+  }
+  input[type=time]{
+    border:1px solid var(--line);border-radius:9px;height:44px;padding:0 10px;background:var(--card);
+    font-variant-numeric:tabular-nums;font-weight:600;
+  }
+
+  .carry{font-size:13px;color:var(--muted);padding:0 14px 12px}
+
+  /* ---- save bar ---- */
+  .savebar{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:linear-gradient(180deg,rgba(238,241,239,0) 0%,var(--paper) 34%);
+    padding:16px 14px calc(14px + env(safe-area-inset-bottom));
+  }
+  .savebar .inner{max-width:620px;margin:0 auto;display:flex;gap:8px}
+  .savebar button{
+    flex:1;height:56px;border-radius:12px;background:var(--kelp);color:#fff;
+    font-size:17px;font-weight:700;
+  }
+  .savebar button.sec{
+    flex:0 0 auto;width:76px;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    font-size:15px;
+  }
+  .savebar button:disabled{opacity:.45}
+
+  /* ---- sheet ---- */
+  .sheet{
+    position:fixed;inset:0;z-index:50;background:rgba(16,26,24,.45);
+    display:none;align-items:flex-end;
+  }
+  .sheet.open{display:flex}
+  .sheet .panel{
+    background:var(--paper);width:100%;max-height:88vh;overflow:auto;
+    border-radius:16px 16px 0 0;padding:16px 14px calc(20px + env(safe-area-inset-bottom));
+  }
+  .sheet h3{margin:0 0 10px;font-size:19px}
+  .sheet .close{
+    position:sticky;top:0;float:right;font-size:15px;font-weight:700;color:var(--kelp);
+  }
+  .listbtn{
+    display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:13px;margin-bottom:7px;font-weight:600;
+  }
+  .listbtn small{display:block;font-weight:400;color:var(--muted)}
+  .visit{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    margin-bottom:7px;display:flex;gap:10px;align-items:center;
+  }
+  .visit .v1{flex:1;min-width:0}
+  .visit .v1 b{font-variant-numeric:tabular-nums}
+  .visit .v1 small{display:block;color:var(--muted);font-size:13px}
+  .visit .del{color:var(--amber);font-size:14px;font-weight:600;padding:8px}
+  .note{
+    background:var(--amber-soft);border:1px solid #E3CDA4;border-radius:10px;
+    padding:11px 12px;font-size:14px;margin:10px 0;
+  }
+  .soak{
+    border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:10px;
+    background:#F7F9F8;
+  }
+  .soak.running{background:var(--kelp-soft);border-color:#A9CFC1}
+  .soak.done{background:var(--amber-soft);border-color:#E3CDA4}
+  .soak .big{
+    font-size:44px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;
+    letter-spacing:-0.02em;
+  }
+  .soak .sub{color:var(--muted);font-size:14px;margin-top:4px}
+  .soak .acts{display:flex;gap:8px;margin-top:11px}
+  .soak .acts button{
+    flex:1;height:48px;border-radius:10px;font-weight:700;font-size:16px;
+    background:var(--kelp);color:#fff;
+  }
+  .soak .acts button.ghost{
+    background:var(--card);color:var(--ink);border:1px solid var(--line);flex:0 0 auto;padding:0 16px;
+  }
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:60;
+    background:var(--ink);color:#fff;padding:11px 16px;border-radius:999px;font-size:15px;
+    font-weight:600;opacity:0;pointer-events:none;transition:opacity .18s;
+  }
+  .toast.show{opacity:1}
+  @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+  :focus-visible{outline:3px solid var(--kelp);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hrow">
+      <input type="date" id="date" aria-label="Survey date">
+      <span id="crewSummary" style="font-size:14px;color:var(--muted)"></span>
+      <div class="hbtn">
+        <button id="btnCrew">Crew</button>
+        <button id="btnData">Data</button>
+      </div>
+    </div>
+    <div class="rail" id="rail"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="station">
+    <h1 id="stName">RSW-001</h1>
+    <p class="alias" id="stAlias"></p>
+  </div>
+
+  <section>
+    <div class="shead"><h2>Sampling events at this station</h2></div>
+    <div class="sbody">
+      <div class="chips" id="events"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><h2>Time</h2></div>
+    <div class="sbody">
+      <div id="soak"></div>
+      <div class="row">
+        <div class="lab">Station time<small id="timeHint">set when you save</small></div>
+        <input type="time" id="time" step="1">
+      </div>
+      <div id="tideRow"></div>
+      <div class="row" id="fixRow"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>Conditions</h2>
+      <span class="hint" id="carryHint"></span>
+    </div>
+    <div class="sbody" id="conds"></div>
+  </section>
+
+  <section>
+    <div class="shead">
+      <h2>Sightings</h2>
+      <span class="hint">count at station</span>
+    </div>
+    <div class="sbody" id="sightings"></div>
+  </section>
+
+  <section>
+    <div class="shead"><h2>Comments</h2></div>
+    <div class="sbody">
+      <div class="row" style="display:block;padding-top:4px">
+        <textarea id="comments" placeholder="Anything unusual. Left blank most days."></textarea>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="savebar">
+  <div class="inner">
+    <button class="sec" id="btnSkip">Skip</button>
+    <button id="btnSave">Save station</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet"><div class="panel" id="sheetPanel"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ------------------------------------------------------------------
+   Station list, in the order the run is normally worked.
+   RSW is canonical. benthic = sediment counterpart, or null.
+------------------------------------------------------------------ */
+const STATIONS = [
+  {id:"Reference", benthic:"Reference"},
+  {id:"RSW-018", benthic:"B18"},
+  {id:"RSW-017", benthic:null},
+  {id:"RSW-016", benthic:"B16"},
+  {id:"RSW-006", benthic:"B6"},
+  {id:"RSW-007", benthic:"B7"},
+  {id:"RSW-014", benthic:null},
+  {id:"RSW-008", benthic:"B8"},
+  {id:"RSW-015", benthic:null},
+  {id:"RSW-009", benthic:"B9"},
+  {id:"RSW-010", benthic:"B10"},
+  {id:"RSW-005", benthic:"B5"},
+  {id:"RSW-003", benthic:null},
+  {id:"RSW-001", benthic:"B1"},
+  {id:"RSW-021", benthic:null},
+  {id:"RSW-023", benthic:null},
+  {id:"RSW-025", benthic:null}
+];
+const ORDER = {};
+STATIONS.forEach((s,i)=>ORDER[s.id] = i);
+
+const EVENTS = ["Water Quality","Water Chemistry","Bacteria Sampling","Sediment Sampling"];
+
+const ROSTER = ["J. Williams","J. Peria","B. Power","J. Vitagliano","D. Ramirez",
+                "C. Craig","M. Valdez","S. Hernandez","G. Brundage","M. Barajas"];
+
+/* Always-on species, then the ones added only when seen. */
+const ALWAYS = ["Brown Pelicans","Least Terns"];
+const OPTIONAL = ["Western Gull","Heermann's Gull","Forster's Tern","Elegant Tern",
+                  "Pelagic Cormorant","California Sea Lion"];
+
+const FLAGS = ["Turbidity","Oil/Grease","Red Tide","Commercial Fishing","Floating Debris"];
+
+/* Instrument soak before a Water Quality reading. */
+const SOAK_SECONDS = 90;
+
+/* NOAA CO-OPS tide predictions, Santa Monica CA. */
+const TIDE_STATION = "9410840";
+const TIDE_URL = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter";
+
+/* ------------------------------------------------------------------
+   Storage. Falls back to memory if the browser blocks localStorage.
+------------------------------------------------------------------ */
+const KEY = "fieldnotes.v1";
+let memory = null;
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return memory; }
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }
+  catch(e){ memory = state; }
+}
+
+const todayISO = new Date().toISOString().slice(0,10);
+
+let state = load() || {
+  deviceId: "P" + Math.random().toString(36).slice(2,6).toUpperCase(),
+  date: todayISO,
+  crew: ["J. Williams"],
+  visits: {},               // key `${date}|${station}` -> visit
+  defaults: {               // carried forward to the next station
+    swell:2, wind:3, cloud:0, tide:"Flood",
+    flags:{Turbidity:"No","Oil/Grease":"No","Red Tide":"No","Commercial Fishing":"No","Floating Debris":"No"}
+  },
+  shown: [],                // optional species currently visible
+  custom: [],               // species typed in by the user, kept between days
+  roster: ROSTER.slice(), // crew list, kept between days
+  soak: null,             // running instrument soak, if any
+  tides: {},              // date -> cached NOAA high/low table
+  refCoords: {}           // station -> first recorded position
+};
+if(!state.deviceId) state.deviceId = "P" + Math.random().toString(36).slice(2,6).toUpperCase();
+if(!state.roster || !state.roster.length) state.roster = ROSTER.slice();
+if(!state.custom) state.custom = [];
+if(!state.tides) state.tides = {};
+if(!state.refCoords) state.refCoords = {};
+if(state.pocketAlarm === undefined) state.pocketAlarm = true;
+
+let cursor = 0;             // index into STATIONS
+let draft = null;
+
+function vkey(st){ return state.date + "|" + st; }
+
+function blankDraft(st){
+  const d = state.defaults;
+  return {
+    station: st,
+    events: [],
+    swell: d.swell, wind: d.wind, cloud: d.cloud, tide: d.tide,
+    flags: Object.assign({}, d.flags),
+    counts: {},
+    time: "",
+    comments: "",
+    device: state.deviceId
+  };
+}
+
+function loadDraft(){
+  const st = STATIONS[cursor].id;
+  const saved = state.visits[vkey(st)];
+  draft = saved ? JSON.parse(JSON.stringify(saved)) : blankDraft(st);
+  // make sure any species with a count is visible
+  Object.keys(draft.counts).forEach(k=>{
+    if(!ALWAYS.includes(k) && !state.shown.includes(k)) state.shown.push(k);
+  });
+  render();
+}
+
+/* ------------------------------------------------------------------
+   Render
+------------------------------------------------------------------ */
+function render(){
+  document.getElementById("date").value = state.date;
+  document.getElementById("crewSummary").textContent =
+    state.crew.length ? (state.crew.length === 1 ? state.crew[0] : state.crew.length + " crew") : "no crew";
+
+  // station rail
+  const rail = document.getElementById("rail");
+  rail.innerHTML = "";
+  STATIONS.forEach((s,i)=>{
+    const b = document.createElement("button");
+    b.textContent = s.id.replace("RSW-","");
+    b.title = s.id;
+    if(i === cursor) b.className = "here";
+    else if(state.visits[vkey(s.id)]) b.className = "done";
+    b.onclick = ()=>{ commitDraftIfStarted(); cursor = i; loadDraft(); scrollTop(); };
+    rail.appendChild(b);
+  });
+  const here = rail.children[cursor];
+  if(here) here.scrollIntoView({block:"nearest",inline:"center"});
+
+  const st = STATIONS[cursor];
+  document.getElementById("stName").textContent = st.id;
+  document.getElementById("stAlias").textContent =
+    st.benthic ? "Sediment rows export as " + st.benthic : "Surface water only, no sediment station";
+
+  // events
+  const ev = document.getElementById("events");
+  ev.innerHTML = "";
+  EVENTS.forEach(e=>{
+    const disabled = (e === "Sediment Sampling" && !st.benthic);
+    const b = document.createElement("button");
+    b.textContent = e;
+    if(draft.events.includes(e)) b.className = "on";
+    if(disabled){ b.disabled = true; b.style.opacity = ".35"; }
+    b.onclick = ()=>{
+      const i = draft.events.indexOf(e);
+      if(i<0) draft.events.push(e); else draft.events.splice(i,1);
+      render();
+    };
+    ev.appendChild(b);
+  });
+
+  // conditions
+  applyTide();
+  const c = document.getElementById("conds");
+  c.innerHTML = "";
+  c.appendChild(stepperRow("Sea swell","ft", draft.swell, 0, 20, 1, v=>{draft.swell=v;}));
+  c.appendChild(stepperRow("Wind speed","kts", draft.wind, 0, 50, 1, v=>{draft.wind=v;}));
+  c.appendChild(stepperRow("Cloud cover","%", draft.cloud, 0, 100, 10, v=>{draft.cloud=v;}));
+  FLAGS.forEach(f=>{
+    c.appendChild(twoWayRow(f, ["No","Yes"], draft.flags[f], v=>{draft.flags[f]=v; render();}, true));
+  });
+
+  // tide, shown with the time it is derived from
+  const auto = tideAt(state.date, draft.time);
+  let tideSub;
+  if(draft.tideManual) tideSub = "set by hand";
+  else if(auto) tideSub = "Santa Monica prediction at " + draft.time;
+  else if(!state.tides[state.date]) tideSub = "no tide table for this date";
+  else tideSub = "needs a station time";
+  const tr = document.getElementById("tideRow");
+  tr.innerHTML = "";
+  tr.appendChild(twoWayRow("Tide", ["Ebb","Flood"], draft.tide, v=>{
+    draft.tide = v; draft.tideManual = true; render();
+  }, false, tideSub));
+  const changed = condsDifferFromDefault();
+  document.getElementById("carryHint").textContent = changed ? "changed here" : "carried from last station";
+
+  // sightings
+  const sg = document.getElementById("sightings");
+  sg.innerHTML = "";
+  const visible = ALWAYS.concat(state.shown);
+  visible.forEach(sp=>{
+    sg.appendChild(stepperRow(sp, "", draft.counts[sp] || 0, 0, 9999, 1, v=>{
+      if(v) draft.counts[sp] = v; else delete draft.counts[sp];
+    }));
+  });
+  const addWrap = document.createElement("div");
+  addWrap.className = "chips";
+  const add = document.createElement("button");
+  add.className = "add";
+  add.textContent = "+ Add species";
+  add.onclick = openSpecies;
+  addWrap.appendChild(add);
+  sg.appendChild(addWrap);
+
+  document.getElementById("time").value = draft.time || "";
+  document.getElementById("timeHint").textContent = draft.time ? "recorded" : "set when you save";
+  document.getElementById("comments").value = draft.comments || "";
+  renderFix();
+  renderSoak();
+
+  document.getElementById("btnSave").textContent =
+    state.visits[vkey(st.id)] ? "Update station" : "Save station";
+  document.getElementById("btnSave").disabled = draft.events.length === 0;
+}
+
+function condsDifferFromDefault(){
+  const d = state.defaults;
+  if(draft.swell!==d.swell || draft.wind!==d.wind || draft.cloud!==d.cloud) return true;
+  return FLAGS.some(f => draft.flags[f] !== d.flags[f]);
+}
+
+function stepperRow(label, unit, value, min, max, step, onchange){
+  const row = document.createElement("div"); row.className = "row";
+  const lab = document.createElement("div"); lab.className = "lab";
+  lab.innerHTML = "<span>"+label+"</span>" + (unit ? "<small>"+unit+"</small>" : "");
+  const s = document.createElement("div"); s.className = "step";
+  const minus = document.createElement("button"); minus.textContent = "−";
+  minus.setAttribute("aria-label","decrease "+label);
+  const val = document.createElement("div"); val.className = "val" + (value?"":" zero");
+  val.textContent = value;
+  const plus = document.createElement("button"); plus.textContent = "+";
+  plus.setAttribute("aria-label","increase "+label);
+  let v = value;
+  function set(nv){
+    v = Math.max(min, Math.min(max, nv));
+    val.textContent = v;
+    val.className = "val" + (v?"":" zero");
+    onchange(v);
+    if(label==="Sea swell"||label==="Wind speed"||label==="Cloud cover") {
+      document.getElementById("carryHint").textContent =
+        condsDifferFromDefault() ? "changed here" : "carried from last station";
+    }
+  }
+  minus.onclick = ()=>set(v-step);
+  plus.onclick  = ()=>set(v+step);
+  s.append(minus,val,plus);
+  row.append(lab,s);
+  return row;
+}
+
+function twoWayRow(label, opts, value, onchange, isFlag, sub){
+  const row = document.createElement("div"); row.className = "row";
+  const lab = document.createElement("div"); lab.className = "lab";
+  lab.innerHTML = "<span>"+label+"</span>" + (sub ? "<small>"+sub+"</small>" : "");
+  const g = document.createElement("div"); g.className = "yn";
+  opts.forEach(o=>{
+    const b = document.createElement("button");
+    b.textContent = o;
+    if(o === value) b.className = "on" + (isFlag && o === "Yes" ? " flag" : "");
+    b.onclick = ()=>onchange(o);
+    g.appendChild(b);
+  });
+  row.append(lab,g);
+  return row;
+}
+
+function scrollTop(){ window.scrollTo({top:0,behavior:"instant"}); }
+
+/* ------------------------------------------------------------------
+   Tides. Pulled once per date from NOAA and cached, so the lookup
+   still works with no signal at the beach.
+------------------------------------------------------------------ */
+function ymd(iso){ return iso.replace(/-/g,""); }
+function shiftDay(iso, days){
+  const [y,m,d] = iso.split("-").map(Number);
+  const dt = new Date(y, m-1, d + days);
+  return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");
+}
+function parseNoaa(t){
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  if(!m) return null;
+  return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime();
+}
+
+async function fetchTides(dateIso, quiet){
+  const qs = new URLSearchParams({
+    product:"predictions", datum:"MLLW", station:TIDE_STATION,
+    time_zone:"lst_ldt", units:"english", interval:"hilo",
+    begin_date: ymd(shiftDay(dateIso,-1)),
+    end_date: ymd(shiftDay(dateIso, 1)),
+    format:"json"
+  });
+  try{
+    const r = await fetch(TIDE_URL + "?" + qs.toString());
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message || "NOAA returned an error");
+    if(!j.predictions || !j.predictions.length) throw new Error("no predictions returned");
+    state.tides[dateIso] = j.predictions
+      .map(p=>({ ms: parseNoaa(p.t), type: p.type, v: p.v }))
+      .filter(p=>p.ms);
+    state.tides[dateIso+"|fetched"] = Date.now();
+    save();
+    if(!quiet) toast("Tides loaded for " + dateIso);
+    render();
+    return true;
+  }catch(e){
+    if(!quiet) alert("Could not load tides: " + e.message +
+      "\n\nPick Ebb or Flood by hand. The app will keep the manual value.");
+    return false;
+  }
+}
+
+/* Ebb between a high and the next low, flood between a low and the next high. */
+function tideAt(dateIso, hhmmss){
+  const table = state.tides[dateIso];
+  if(!table || !table.length || !hhmmss) return null;
+  const [y,m,d] = dateIso.split("-").map(Number);
+  const [hh,mi,ss] = hhmmss.split(":").map(Number);
+  const t = new Date(y, m-1, d, hh, mi, ss||0).getTime();
+  let prev = null, next = null;
+  table.forEach(p=>{
+    if(p.ms <= t && (!prev || p.ms > prev.ms)) prev = p;
+    if(p.ms >  t && (!next || p.ms < next.ms)) next = p;
+  });
+  if(prev) return prev.type === "H" ? "Ebb" : "Flood";
+  if(next) return next.type === "H" ? "Flood" : "Ebb";
+  return null;
+}
+
+/* Sets the tide from the table unless the user picked one by hand. */
+function applyTide(){
+  if(!draft || draft.tideManual) return;
+  const t = tideAt(state.date, draft.time);
+  if(t && t !== draft.tide){ draft.tide = t; }
+}
+
+/* ------------------------------------------------------------------
+   Position
+------------------------------------------------------------------ */
+function haversine(a, b){
+  const R = 6371000, rad = x=>x*Math.PI/180;
+  const dLat = rad(b.lat-a.lat), dLon = rad(b.lon-a.lon);
+  const s = Math.sin(dLat/2)**2 +
+            Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)**2;
+  return Math.round(2*R*Math.asin(Math.sqrt(s)));
+}
+
+function getFix(silent){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ if(!silent) alert("This browser has no location access."); return resolve(null); }
+    navigator.geolocation.getCurrentPosition(
+      p=>{
+        const fix = {
+          lat: +p.coords.latitude.toFixed(6),
+          lon: +p.coords.longitude.toFixed(6),
+          acc: Math.round(p.coords.accuracy)
+        };
+        resolve(fix);
+      },
+      err=>{
+        if(!silent) alert("Could not get a position: " + err.message +
+          "\n\nLocation needs the page served over https. It does not work from a file opened directly.");
+        resolve(null);
+      },
+      {enableHighAccuracy:true, timeout:15000, maximumAge:10000}
+    );
+  });
+}
+
+async function captureFix(){
+  const btn = document.getElementById("fixBtn");
+  if(btn){ btn.textContent = "Locating"; btn.disabled = true; }
+  const fix = await getFix(false);
+  if(fix){
+    draft.fix = fix;
+    const st = draft.station;
+    if(!state.refCoords[st]) state.refCoords[st] = {lat:fix.lat, lon:fix.lon};
+    if(state.visits[vkey(st)]) state.visits[vkey(st)].fix = fix;
+    save();
+  }
+  render();
+}
+
+/* ------------------------------------------------------------------
+   Soak alarm.
+
+   A WebAudio beep fired by a JS timer dies as soon as iOS suspends the
+   page, which is exactly what happens when the phone goes in a pocket.
+   Instead we build one audio file of SOAK_SECONDS of near-silence
+   followed by the beeps, and start playing it on the tap. Media
+   playback keeps running in the background on iOS, and the timing
+   comes from the audio clock rather than from JS.
+------------------------------------------------------------------ */
+let alarmEl = null, alarmUrl = null, wakeLock = null;
+
+function buildAlarmWav(seconds){
+  const sr = 8000, tail = 3;
+  const n = Math.round((seconds + tail) * sr);
+  const pcm = new Uint8Array(n);
+  // Near-silence rather than true silence. Some players stop on a
+  // perfectly flat stream.
+  for(let i=0;i<n;i++) pcm[i] = 128 + (i & 1);
+  const start = Math.round(seconds * sr);
+  [0, 0.45, 0.90].forEach(off=>{
+    const s = start + Math.round(off*sr), len = Math.round(0.28*sr);
+    for(let i=0;i<len && s+i<n;i++){
+      const env = Math.min(1, i/300, (len-i)/300);
+      pcm[s+i] = 128 + Math.round(110 * env * Math.sin(2*Math.PI*880*i/sr));
+    }
+  });
+
+  const buf = new ArrayBuffer(44 + n), dv = new DataView(buf);
+  const tag = (o,s)=>{ for(let i=0;i<s.length;i++) dv.setUint8(o+i, s.charCodeAt(i)); };
+  tag(0,"RIFF"); dv.setUint32(4, 36+n, true); tag(8,"WAVEfmt ");
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr, true);
+  dv.setUint16(32, 1, true); dv.setUint16(34, 8, true);
+  tag(36,"data"); dv.setUint32(40, n, true);
+  new Uint8Array(buf, 44).set(pcm);
+  return new Blob([buf], {type:"audio/wav"});
+}
+
+/* Must be called from the tap that starts the soak. */
+function startAlarm(offsetSeconds){
+  stopAlarm();
+  try{
+    alarmUrl = URL.createObjectURL(buildAlarmWav(SOAK_SECONDS));
+    alarmEl = new Audio(alarmUrl);
+    alarmEl.preload = "auto";
+    alarmEl.volume = 1;
+    if(offsetSeconds > 0) alarmEl.currentTime = offsetSeconds;
+    const p = alarmEl.play();
+    if(p && p.catch) p.catch(()=>{});
+  }catch(e){ alarmEl = null; }
+}
+
+function stopAlarm(){
+  if(alarmEl){ try{ alarmEl.pause(); }catch(e){} alarmEl = null; }
+  if(alarmUrl){ URL.revokeObjectURL(alarmUrl); alarmUrl = null; }
+}
+
+/* Short beep for when the pocket alarm is off. Needs the screen on,
+   because iOS suspends this the moment the page is backgrounded. */
+let audioCtx = null;
+function primeBeep(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+  }catch(e){ audioCtx = null; }
+}
+function beep(){
+  if(!audioCtx) return;
+  try{
+    [0, 0.45, 0.90].forEach(off=>{
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = 880; o.type = "sine";
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + off);
+      g.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + off + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + off + 0.26);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(audioCtx.currentTime + off);
+      o.stop(audioCtx.currentTime + off + 0.28);
+    });
+  }catch(e){}
+}
+
+/* Keeps the screen on so the phone does not auto-lock mid-soak. */
+async function holdScreen(){
+  try{
+    if("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen");
+  }catch(e){ wakeLock = null; }
+}
+function releaseScreen(){
+  if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock = null; }
+}
+document.addEventListener("visibilitychange", ()=>{
+  // A wake lock is dropped when the page is hidden. Take it back.
+  if(document.visibilityState === "visible" && state.soak && !wakeLock){
+    const left = SOAK_SECONDS - Math.floor((Date.now() - state.soak.start)/1000);
+    if(left > 0) holdScreen();
+  }
+});
+
+/* ------------------------------------------------------------------
+   Soak timer. Water Quality only. Survives navigating to another
+   station or closing the app, because it counts from a stored epoch.
+------------------------------------------------------------------ */
+function clockFromEpoch(ms){
+  const d = new Date(ms);
+  return String(d.getHours()).padStart(2,"0")+":"+
+         String(d.getMinutes()).padStart(2,"0")+":"+
+         String(d.getSeconds()).padStart(2,"0");
+}
+function mmss(sec){
+  sec = Math.max(0, sec);
+  return String(Math.floor(sec/60))+":"+String(sec%60).padStart(2,"0");
+}
+
+function renderFix(){
+  const row = document.getElementById("fixRow");
+  const st = STATIONS[cursor].id;
+  const f = draft.fix;
+  const ref = state.refCoords[st];
+  let sub;
+  if(!f) sub = ref ? "reference on file for this station" : "not recorded";
+  else {
+    sub = "±" + f.acc + " m";
+    if(ref){
+      const d = haversine(ref, f);
+      sub += ", " + d + " m from the station reference";
+    }
+  }
+  row.innerHTML = '<div class="lab"><span>' +
+    (f ? f.lat.toFixed(5) + ", " + f.lon.toFixed(5) : "Position") +
+    '</span><small>' + sub + '</small></div>';
+  const b = document.createElement("button");
+  b.id = "fixBtn";
+  b.textContent = f ? "Redo" : "Get fix";
+  b.style.cssText = "border:1px solid var(--line);background:var(--card);border-radius:9px;height:44px;padding:0 16px;font-weight:600";
+  b.onclick = captureFix;
+  row.appendChild(b);
+}
+
+function renderSoak(){
+  const box = document.getElementById("soak");
+  const st = STATIONS[cursor].id;
+  if(!draft.events.includes("Water Quality")){ box.innerHTML = ""; return; }
+
+  const s = state.soak;
+  const mine = s && s.station === st && s.date === state.date;
+  const left = mine ? SOAK_SECONDS - Math.floor((Date.now() - s.start)/1000) : null;
+
+  box.innerHTML = "";
+  const panel = document.createElement("div");
+  panel.className = "soak" + (mine ? (left > 0 ? " running" : " done") : "");
+
+  if(!mine){
+    panel.innerHTML = '<div style="font-weight:600">Instrument soak</div>'+
+      '<div class="sub">Records the station time, then counts '+SOAK_SECONDS+' seconds. '+
+      (state.pocketAlarm
+        ? 'Alarm works with the phone pocketed and pauses any music.'
+        : 'Alarm needs the screen on and leaves music alone.') + '</div>';
+    const acts = document.createElement("div"); acts.className = "acts";
+    const go = document.createElement("button");
+    go.textContent = "Start soak";
+    go.onclick = ()=>{
+      if(state.pocketAlarm) startAlarm(0); else primeBeep();
+      holdScreen();
+      state.soak = {station:st, date:state.date, start:Date.now(), alerted:false};
+      draft.time = clockFromEpoch(state.soak.start);
+      if(state.visits[vkey(st)]) state.visits[vkey(st)].time = draft.time;
+      save(); render();
+      if(!draft.fix) getFix(true).then(fix=>{
+        if(!fix || draft.station !== st) return;
+        draft.fix = fix;
+        if(!state.refCoords[st]) state.refCoords[st] = {lat:fix.lat, lon:fix.lon};
+        if(state.visits[vkey(st)]) state.visits[vkey(st)].fix = fix;
+        save(); render();
+      });
+    };
+    acts.appendChild(go);
+    panel.appendChild(acts);
+  } else if(left > 0){
+    const armed = !state.pocketAlarm || !!alarmEl;
+    panel.innerHTML = '<div class="big">'+mmss(left)+'</div>'+
+      '<div class="sub">Station time '+clockFromEpoch(s.start)+'.' +
+      (armed ? '' : ' The alarm is not armed on this phone.') + '</div>';
+    const acts = document.createElement("div"); acts.className = "acts";
+    if(!armed){
+      const arm = document.createElement("button");
+      arm.textContent = "Arm the alarm";
+      arm.onclick = ()=>{
+        startAlarm(SOAK_SECONDS - left);
+        holdScreen();
+        render();
+      };
+      acts.appendChild(arm);
+    }
+    const stop = document.createElement("button");
+    stop.className = "ghost"; stop.textContent = "Cancel";
+    stop.onclick = ()=>{ stopAlarm(); releaseScreen(); state.soak = null; save(); render(); };
+    acts.appendChild(stop);
+    panel.appendChild(acts);
+  } else {
+    const endMs = s.start + SOAK_SECONDS*1000;
+    panel.innerHTML = '<div class="big">Soak done</div>'+
+      '<div class="sub">Station time is '+clockFromEpoch(s.start)+'. Soak ended '+clockFromEpoch(endMs)+'.</div>';
+    const acts = document.createElement("div"); acts.className = "acts";
+    const again = document.createElement("button");
+    again.className = "ghost"; again.textContent = "Redo soak";
+    again.onclick = ()=>{
+      if(confirm("Redo the soak? The station time will be rewritten when you start the new one.")){
+        stopAlarm(); releaseScreen(); state.soak = null; save(); render();
+      }
+    };
+    acts.appendChild(again);
+    panel.appendChild(acts);
+  }
+  box.appendChild(panel);
+}
+
+/* One interval for the whole app, so the countdown keeps running
+   while you are on another station. */
+setInterval(()=>{
+  const s = state.soak;
+  if(!s) return;
+  const left = SOAK_SECONDS - Math.floor((Date.now() - s.start)/1000);
+  if(left <= 0 && !s.alerted){
+    s.alerted = true; save();
+    releaseScreen();
+    if(!state.pocketAlarm) beep();
+    if(navigator.vibrate) navigator.vibrate([200,100,200,100,400]);
+    toast("Soak done at " + s.station);
+  }
+  if(draft && draft.events.includes("Water Quality") && s.station === STATIONS[cursor].id){
+    renderSoak();
+  }
+}, 500);
+
+
+/* ------------------------------------------------------------------
+   Saving
+------------------------------------------------------------------ */
+function nowTime(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0");
+}
+
+function commitDraftIfStarted(){
+  // If the user changed something but did not tap Save, keep it rather than lose it.
+  if(!draft) return;
+  if(draft.events.length === 0 && !draft.comments && Object.keys(draft.counts).length === 0) return;
+  if(!state.visits[vkey(draft.station)]) return;   // only auto-keep edits to already-saved visits
+  state.visits[vkey(draft.station)] = JSON.parse(JSON.stringify(draft));
+  save();
+}
+
+document.getElementById("btnSave").onclick = ()=>{
+  draft.comments = document.getElementById("comments").value.trim();
+  const t = document.getElementById("time").value;
+  draft.time = t ? (t.length === 5 ? t + ":00" : t) : nowTime();
+  applyTide();
+  draft.crew = state.crew.slice();
+  state.visits[vkey(draft.station)] = JSON.parse(JSON.stringify(draft));
+  state.defaults = {
+    swell:draft.swell, wind:draft.wind, cloud:draft.cloud, tide:draft.tide,
+    flags:Object.assign({}, draft.flags)
+  };
+  save();
+  if(state.soak && state.soak.station === draft.station) { stopAlarm(); releaseScreen(); state.soak = null; save(); }
+  toast("Saved " + draft.station);
+  next();
+};
+
+document.getElementById("btnSkip").onclick = ()=>{ next(); };
+
+function next(){
+  if(cursor < STATIONS.length - 1){ cursor++; loadDraft(); scrollTop(); }
+  else { loadDraft(); toast("Last station on the list"); }
+}
+
+document.getElementById("date").onchange = e=>{
+  state.date = e.target.value; save(); cursor = 0; loadDraft();
+  if(!state.tides[state.date]) fetchTides(state.date, true);
+};
+document.getElementById("comments").oninput = e=>{ draft.comments = e.target.value; };
+document.getElementById("time").onchange = e=>{
+  draft.time = e.target.value ? (e.target.value.length===5 ? e.target.value+":00" : e.target.value) : "";
+  document.getElementById("timeHint").textContent = draft.time ? "recorded" : "set when you save";
+};
+
+/* ------------------------------------------------------------------
+   Sheets
+------------------------------------------------------------------ */
+const sheet = document.getElementById("sheet");
+const panel = document.getElementById("sheetPanel");
+sheet.onclick = e=>{ if(e.target === sheet) closeSheet(); };
+function openSheet(html){ panel.innerHTML = html; sheet.classList.add("open"); }
+function closeSheet(){ sheet.classList.remove("open"); }
+
+function openSpecies(){
+  openSheet('<button class="close" onclick="closeSheet()">Done</button><h3>Add species</h3><div id="spList"></div>');
+  const list = document.getElementById("spList");
+  const pool = OPTIONAL.concat(state.custom).filter(s=>!state.shown.includes(s));
+  pool.forEach(sp=>{
+    const b = document.createElement("button");
+    b.className = "listbtn"; b.textContent = sp;
+    b.onclick = ()=>{ state.shown.push(sp); save(); render(); openSpecies(); };
+    list.appendChild(b);
+  });
+  if(!pool.length){
+    const p = document.createElement("p");
+    p.style.color = "var(--muted)";
+    p.textContent = "Everything on the list is already showing.";
+    list.appendChild(p);
+  }
+  list.appendChild(addField("Other species", "Add species", v=>{
+    if(!state.custom.includes(v)) state.custom.push(v);
+    if(!state.shown.includes(v)) state.shown.push(v);
+    save(); render(); openSpecies();
+  }));
+  list.appendChild(customList(state.custom, sp=>{
+    state.custom.splice(state.custom.indexOf(sp),1);
+    const i = state.shown.indexOf(sp);
+    if(i>=0) state.shown.splice(i,1);
+    Object.values(state.visits).forEach(v=>{ if(v.counts) delete v.counts[sp]; });
+    if(draft && draft.counts) delete draft.counts[sp];
+    save(); render(); openSpecies();
+  }, "species"));
+}
+
+/* Text field plus button, shared by the crew and species sheets. */
+function addField(placeholder, action, onadd){
+  const wrap = document.createElement("div");
+  wrap.style.marginTop = "14px";
+  const inp = document.createElement("input");
+  inp.placeholder = placeholder;
+  inp.autocapitalize = "words";
+  inp.style.cssText = "width:100%;height:46px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--card)";
+  const btn = document.createElement("button");
+  btn.className = "listbtn";
+  btn.style.cssText = "margin-top:8px;color:var(--kelp);text-align:center";
+  btn.textContent = action;
+  function go(){
+    const v = inp.value.trim();
+    if(!v) return;
+    onadd(v);
+  }
+  btn.onclick = go;
+  inp.onkeydown = e=>{ if(e.key === "Enter"){ e.preventDefault(); go(); } };
+  wrap.append(inp, btn);
+  return wrap;
+}
+
+/* Shows the entries the user typed in, each with a way to take it back out. */
+function customList(items, onremove, noun){
+  const wrap = document.createElement("div");
+  if(!items.length) return wrap;
+  wrap.style.marginTop = "16px";
+  const h = document.createElement("div");
+  h.style.cssText = "font-size:13px;font-weight:700;color:var(--muted);margin-bottom:7px";
+  h.textContent = "Added by you";
+  wrap.appendChild(h);
+  items.forEach(it=>{
+    const row = document.createElement("div");
+    row.className = "visit";
+    row.innerHTML = '<div class="v1"><b style="font-weight:600">'+it+'</b></div>';
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "Remove";
+    del.onclick = ()=>{
+      if(confirm('Remove "'+it+'" from your saved '+noun+' list?')) onremove(it);
+    };
+    row.appendChild(del);
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+document.getElementById("btnCrew").onclick = openCrew;
+
+function openCrew(){
+  openSheet('<button class="close" onclick="closeSheet()">Done</button><h3>Crew on today</h3><div class="chips" id="crewChips"></div><div id="crewAdd"></div>');
+  const c = document.getElementById("crewChips");
+  const all = state.roster.slice();
+  state.crew.forEach(p=>{ if(!all.includes(p)) all.push(p); });
+  all.forEach(p=>{
+    const b = document.createElement("button");
+    b.textContent = p;
+    if(state.crew.includes(p)) b.className = "on";
+    b.onclick = ()=>{
+      const i = state.crew.indexOf(p);
+      if(i<0) state.crew.push(p); else state.crew.splice(i,1);
+      save(); b.className = state.crew.includes(p) ? "on" : "";
+      render();
+    };
+    c.appendChild(b);
+  });
+
+  const add = document.getElementById("crewAdd");
+  add.appendChild(addField("Name, as it should read in the CSV", "Add to roster", v=>{
+    if(!state.roster.includes(v)) state.roster.push(v);
+    if(!state.crew.includes(v)) state.crew.push(v);
+    save(); render(); openCrew();
+  }));
+  const added = state.roster.filter(p=>!ROSTER.includes(p));
+  add.appendChild(customList(added, p=>{
+    state.roster.splice(state.roster.indexOf(p),1);
+    const i = state.crew.indexOf(p);
+    if(i>=0) state.crew.splice(i,1);
+    save(); render(); openCrew();
+  }, "crew"));
+}
+
+document.getElementById("btnData").onclick = openData;
+
+function openData(){
+  const keys = Object.keys(state.visits).filter(k=>k.startsWith(state.date+"|"));
+  let html = '<button class="close" onclick="closeSheet()">Done</button><h3>'+state.date+'</h3>';
+  html += '<div class="note">Phone '+state.deviceId+'. Each phone keeps its own records. '+
+          'Send the file from the other phones and load them here before you export the CSV.</div>';
+  html += '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+          '<button class="listbtn" style="text-align:center;color:var(--kelp)" id="expCsv">Export CSV</button>'+
+          '<button class="listbtn" style="text-align:center" id="expJson">Save backup</button>'+
+          '<button class="listbtn" style="text-align:center" id="impJson">Load a phone</button>'+
+          '</div><input type="file" id="fileIn" accept=".json" style="display:none">';
+  const tt = state.tides[state.date];
+  html += '<button class="listbtn" id="tideBtn" style="text-align:center;color:var(--kelp)">'+
+          (tt ? "Reload tide table" : "Load tide table") +
+          '<small>' + (tt ? tt.filter(p=>true).length + " highs and lows cached from Santa Monica " + TIDE_STATION
+                          : "Santa Monica " + TIDE_STATION + ", needs signal") + '</small></button>';
+  html += '<div id="alarmBox" style="margin-top:14px"></div>';
+  html += '<div id="verBox" style="margin-top:14px;font-size:13px;color:var(--muted)"></div>';
+  html += '<div id="vlist"></div>';
+  openSheet(html);
+
+  const ab = document.getElementById("alarmBox");
+  ab.appendChild(twoWayRow("Soak alarm", ["Screen on","Pocket"],
+    state.pocketAlarm ? "Pocket" : "Screen on",
+    v=>{
+      state.pocketAlarm = (v === "Pocket");
+      save(); openData(); render();
+    }, false,
+    state.pocketAlarm
+      ? "Hearable with the phone away. Pauses music for "+SOAK_SECONDS+" s per station."
+      : "Leaves music alone. Only fires if the app stays on screen."));
+
+  const vb = document.getElementById("verBox");
+  vb.textContent = "App version " + (swVersion || "not cached for offline use") +
+                   (navigator.onLine ? "" : ". Offline.");
+  if(swWaiting){
+    const u = document.createElement("button");
+    u.className = "listbtn";
+    u.style.cssText = "margin-top:8px;text-align:center;color:var(--kelp)";
+    u.innerHTML = "Install the new version<small>Reloads the app. Save a backup first.</small>";
+    u.onclick = ()=>{
+      if(confirm("Reload now to install the update?")){
+        swWaiting.postMessage("activate-update");
+        setTimeout(()=>location.reload(), 400);
+      }
+    };
+    vb.appendChild(u);
+  }
+
+  const vl = document.getElementById("vlist");
+  if(!keys.length){
+    vl.innerHTML = '<p style="color:var(--muted)">No stations saved for this date yet.</p>';
+  }
+  keys.sort(byRunOrder).forEach(k=>{
+    const v = state.visits[k];
+    const d = document.createElement("div"); d.className = "visit";
+    const seen = Object.entries(v.counts||{}).filter(([,n])=>n>0)
+                 .map(([s,n])=>n+" "+s).join(", ");
+    d.innerHTML = '<div class="v1"><b>'+v.station+'</b> <span style="color:var(--muted)">'+(v.time||"")+'</span>'+
+                  '<small>'+v.events.join(", ")+(seen ? " and "+seen : "")+'</small></div>';
+    const del = document.createElement("button");
+    del.className = "del"; del.textContent = "Delete";
+    del.onclick = ()=>{
+      if(confirm("Delete "+v.station+"?")){ delete state.visits[k]; save(); openData(); render(); }
+    };
+    d.appendChild(del);
+    vl.appendChild(d);
+  });
+
+  document.getElementById("expCsv").onclick = exportCsv;
+  document.getElementById("tideBtn").onclick = ()=>{
+    document.getElementById("tideBtn").textContent = "Loading";
+    fetchTides(state.date, false).then(()=>openData());
+  };
+  document.getElementById("expJson").onclick = exportJson;
+  document.getElementById("impJson").onclick = ()=>document.getElementById("fileIn").click();
+  document.getElementById("fileIn").onchange = importJson;
+}
+
+/* ------------------------------------------------------------------
+   Export
+------------------------------------------------------------------ */
+function csvCell(v){
+  v = (v === null || v === undefined) ? "" : String(v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+}
+
+function usDate(iso){
+  const [y,m,d] = iso.split("-");
+  return Number(m)+"/"+Number(d)+"/"+y.slice(2);
+}
+
+function byRunOrder(a,b){
+  const sa = a.split("|")[1], sb = b.split("|")[1];
+  return (ORDER[sa] ?? 99) - (ORDER[sb] ?? 99);
+}
+
+function exportCsv(){
+  const keys = Object.keys(state.visits).filter(k=>k.startsWith(state.date+"|")).sort(byRunOrder);
+  if(!keys.length){ toast("Nothing to export"); return; }
+
+  // Species columns: the two always-listed ones, then any other seen at least once today.
+  const seen = new Set();
+  keys.forEach(k=>Object.entries(state.visits[k].counts||{}).forEach(([s,n])=>{ if(n>0) seen.add(s); }));
+  const species = ALWAYS.concat(
+    OPTIONAL.concat(state.custom).filter(s=>seen.has(s))
+  );
+
+  const head = ["Date","Station","Crew","Time","Latitude","Longitude","GPS accuracy (m)",
+                "Sea swell (ft)","Wind speed (kts)","Cloud cover (%)"]
+    .concat(FLAGS, ["Sampling Event","Tide"], species, ["Comments"]);
+
+  const rows = [head];
+  keys.forEach(k=>{
+    const v = state.visits[k];
+    const stn = STATIONS.find(s=>s.id === v.station);
+    const f = v.fix || {};
+    v.events.forEach(ev=>{
+      const label = (ev === "Sediment Sampling" && stn && stn.benthic) ? stn.benthic : v.station;
+      rows.push([
+        usDate(state.date), label, (v.crew||state.crew).join(", "), v.time,
+        f.lat ?? "", f.lon ?? "", f.acc ?? "",
+        v.swell, v.wind, v.cloud,
+        ...FLAGS.map(f=>v.flags[f]),
+        ev, v.tide,
+        ...species.map(s=>v.counts[s] || 0),
+        v.comments || ""
+      ]);
+    });
+  });
+
+  const csv = rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  download("FieldNotes_"+state.date+"_"+state.deviceId+".csv", csv, "text/csv");
+}
+
+function exportJson(){
+  download("FieldNotes_"+state.date+"_"+state.deviceId+".json",
+           JSON.stringify(state,null,1), "application/json");
+}
+
+function importJson(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const inc = JSON.parse(r.result);
+      let added = 0, clashes = [];
+      Object.entries(inc.visits||{}).forEach(([k,v])=>{
+        if(state.visits[k]){
+          if(JSON.stringify(state.visits[k]) !== JSON.stringify(v)) clashes.push(k.split("|")[1]);
+        } else { state.visits[k] = v; added++; }
+      });
+      (inc.custom||[]).forEach(s=>{ if(!state.custom.includes(s)) state.custom.push(s); });
+      (inc.roster||[]).forEach(p=>{ if(!state.roster.includes(p)) state.roster.push(p); });
+      save(); openData(); render();
+      toast(added + " stations added" + (clashes.length ? ", " + clashes.length + " kept as mine" : ""));
+      if(clashes.length) alert("These stations exist on both phones with different values. This phone's version was kept:\n\n" + clashes.join("\n"));
+    }catch(err){ alert("Could not read that file: " + err.message); }
+  };
+  r.readAsText(f);
+  e.target.value = "";
+}
+
+function download(name, text, type){
+  const blob = new Blob([text], {type:type});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ------------------------------------------------------------------ */
+let toastT;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(()=>t.classList.remove("show"), 1600);
+}
+
+/* ------------------------------------------------------------------
+   Offline shell. Registering the worker is what makes the app open
+   at a site with no signal.
+------------------------------------------------------------------ */
+let swVersion = null, swWaiting = null;
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./sw.js").then(reg=>{
+    if(reg.waiting) swWaiting = reg.waiting;
+    reg.addEventListener("updatefound", ()=>{
+      const nw = reg.installing;
+      if(!nw) return;
+      nw.addEventListener("statechange", ()=>{
+        if(nw.state === "installed" && navigator.serviceWorker.controller){
+          swWaiting = nw;   // ready, held back until you choose to take it
+        }
+      });
+    });
+    navigator.serviceWorker.ready.then(()=>{
+      if(navigator.serviceWorker.controller){
+        const ch = new MessageChannel();
+        ch.port1.onmessage = ev=>{ swVersion = ev.data.version; };
+        navigator.serviceWorker.controller.postMessage("version", [ch.port2]);
+      }
+    });
+  }).catch(()=>{});
+}
+
+loadDraft();
+if(!state.tides[state.date]) fetchTides(state.date, true);
+</script>
+</body>
+</html>
