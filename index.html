@@ -25,6 +25,9 @@
     --tap:52px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  /* Kills the double-tap-to-zoom gesture on controls, which fires when
+     you tap a stepper fast. Pinch zoom still works. */
+  button, .chip, .step, .yn, .rail, .savebar, input, label{touch-action:manipulation}
   html,body{margin:0;padding:0}
   body{
     background:var(--paper);
@@ -207,6 +210,34 @@
   .soak .acts button.ghost{
     background:var(--card);color:var(--ink);border:1px solid var(--line);flex:0 0 auto;padding:0 16px;
   }
+  .slider-row{display:block;padding:11px 0;border-top:1px solid #E7EBE9}
+  .slider-head{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+  .slider-head .num{
+    margin-left:auto;font-weight:700;font-size:21px;font-variant-numeric:tabular-nums;
+  }
+  .slider-head .num.zero{color:#9AA8A3}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:36px;background:transparent;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:10px;border-radius:5px;background:#DDE4E1;border:1px solid var(--line);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:34px;height:34px;border-radius:50%;
+    background:var(--kelp);border:3px solid var(--card);margin-top:-13px;
+    box-shadow:0 1px 3px rgba(16,26,24,.3);
+  }
+  input[type=range]::-moz-range-track{
+    height:10px;border-radius:5px;background:#DDE4E1;border:1px solid var(--line);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:30px;height:30px;border-radius:50%;background:var(--kelp);border:3px solid var(--card);
+  }
+  .slider-ticks{
+    display:flex;justify-content:space-between;font-size:12px;color:var(--muted);
+    font-variant-numeric:tabular-nums;margin-top:-2px;
+  }
+
   .toast{
     position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:60;
     background:var(--ink);color:#fff;padding:11px 16px;border-radius:999px;font-size:15px;
@@ -487,7 +518,7 @@ function render(){
   c.innerHTML = "";
   c.appendChild(stepperRow("Sea swell","ft", draft.swell, 0, 20, 1, v=>{draft.swell=v;}));
   c.appendChild(stepperRow("Wind speed","kts", draft.wind, 0, 50, 1, v=>{draft.wind=v;}));
-  c.appendChild(stepperRow("Cloud cover","%", draft.cloud, 0, 100, 10, v=>{draft.cloud=v;}));
+  c.appendChild(sliderRow("Cloud cover","%", draft.cloud, 0, 100, 5, v=>{draft.cloud=v;}));
   FLAGS.forEach(f=>{
     c.appendChild(twoWayRow(f, ["No","Yes"], draft.flags[f], v=>{draft.flags[f]=v; render();}, true));
   });
@@ -568,6 +599,32 @@ function stepperRow(label, unit, value, min, max, step, onchange){
   plus.onclick  = ()=>set(v+step);
   s.append(minus,val,plus);
   row.append(lab,s);
+  return row;
+}
+
+function sliderRow(label, unit, value, min, max, step, onchange){
+  const row = document.createElement("div"); row.className = "slider-row";
+  const head = document.createElement("div"); head.className = "slider-head";
+  head.innerHTML = "<span>"+label+"</span>" +
+    '<span class="num' + (value?"":" zero") + '">' + value + (unit||"") + "</span>";
+  const num = head.querySelector(".num");
+
+  const inp = document.createElement("input");
+  inp.type = "range"; inp.min = min; inp.max = max; inp.step = step; inp.value = value;
+  inp.setAttribute("aria-label", label + " in " + (unit || "units"));
+  inp.oninput = ()=>{
+    const v = +inp.value;
+    num.textContent = v + (unit||"");
+    num.className = "num" + (v?"":" zero");
+    onchange(v);
+    document.getElementById("carryHint").textContent =
+      condsDifferFromDefault() ? "changed here" : "carried from last station";
+  };
+
+  const ticks = document.createElement("div"); ticks.className = "slider-ticks";
+  ticks.innerHTML = "<span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>";
+
+  row.append(head, inp, ticks);
   return row;
 }
 
