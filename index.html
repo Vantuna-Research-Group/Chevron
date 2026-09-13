@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Field Notes">
+<meta name="apple-mobile-web-app-title" content="CHV Notes">
 <meta name="theme-color" content="#10614A">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="icon" href="./icon-192.png">
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <meta name="googlebot" content="noindex, nofollow">
-<title>Field Notes</title>
+<title>CHV Notes</title>
 <style>
   :root{
     --paper:#EEF1EF;
@@ -38,7 +38,7 @@
     font-size:17px;
     line-height:1.4;
     -webkit-text-size-adjust:100%;
-    padding-bottom:110px;
+    padding-bottom:140px;
   }
   button,input,select,textarea{font:inherit;color:inherit}
   button{cursor:pointer;border:none;background:none}
@@ -54,6 +54,11 @@
   .hrow{display:flex;align-items:center;gap:10px;padding:8px 0 6px}
   .hrow input[type=date]{
     background:transparent;border:none;font-weight:600;padding:4px 0;min-width:120px;
+    flex-shrink:0;
+  }
+  #crewSummary{
+    font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;min-width:0;
   }
   .hbtn{
     margin-left:auto;display:flex;gap:6px;
@@ -87,7 +92,11 @@
     font-size:14px;font-weight:700;color:var(--amber);background:var(--card);flex-shrink:0;
   }
 
-  .station{padding:16px 0 4px}
+  .station{padding:16px 0 4px;display:flex;align-items:flex-start;gap:14px}
+  .station-main{flex:1;min-width:0}
+  .station-mark{
+    width:48px;height:48px;border-radius:7px;flex-shrink:0;margin-top:2px;
+  }
   .station h1{
     margin:0;font-size:40px;line-height:1;letter-spacing:-0.02em;font-weight:700;
     font-variant-numeric:tabular-nums;
@@ -163,7 +172,9 @@
     padding:16px 14px calc(14px + env(safe-area-inset-bottom));
   }
   .savebar .progress{
-    max-width:620px;margin:0 auto 7px;font-size:13px;color:var(--muted);text-align:center;
+    width:max-content;max-width:100%;margin:0 auto 8px;font-size:13px;color:var(--muted);
+    text-align:center;background:var(--card);border:1px solid var(--line);
+    border-radius:999px;padding:5px 13px;
   }
   .savebar .progress b{color:var(--ink);font-variant-numeric:tabular-nums}
   .savebar .inner{max-width:620px;margin:0 auto;display:flex;gap:8px}
@@ -273,6 +284,15 @@
   }
   @media (prefers-reduced-motion:reduce){.toast{transition:none}}
   :focus-visible{outline:3px solid var(--kelp);outline-offset:2px}
+
+  /* Small phones. The header row has a date, a crew summary and two buttons,
+     which is more than 360px can hold at the default sizes. */
+  @media (max-width:370px){
+    .hrow input[type=date]{font-size:15px;min-width:0}
+    #crewSummary{display:none}
+    .hbtn button{padding:8px 9px;font-size:13px}
+    .station h1{font-size:34px}
+  }
 </style>
 </head>
 <body>
@@ -281,7 +301,7 @@
   <div class="wrap">
     <div class="hrow">
       <input type="date" id="date" aria-label="Survey date">
-      <span id="crewSummary" style="font-size:14px;color:var(--muted)"></span>
+      <span id="crewSummary"></span>
       <div class="hbtn">
         <button id="btnCrew">Crew</button>
         <button id="btnData">Data</button>
@@ -294,8 +314,11 @@
 
 <main class="wrap">
   <div class="station">
-    <h1 id="stName">RSW-001</h1>
-    <p class="alias" id="stAlias"></p>
+    <div class="station-main">
+      <h1 id="stName">RSW-001</h1>
+      <p class="alias" id="stAlias"></p>
+    </div>
+    <img class="station-mark" src="./vrg.png" alt="Vantuna Research Group" width="48" height="48">
   </div>
 
   <section>

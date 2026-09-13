@@ -1,6 +1,6 @@
 {
-  "name": "Field Notes",
-  "short_name": "Field Notes",
+  "name": "CHV Notes",
+  "short_name": "CHV Notes",
   "description": "Station observations for the RSW and benthic survey run.",
   "start_url": "./index.html",
   "scope": "./",
@@ -9,8 +9,21 @@
   "background_color": "#EEF1EF",
   "theme_color": "#10614A",
   "icons": [
-    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

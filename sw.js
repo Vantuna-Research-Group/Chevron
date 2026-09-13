@@ -3,7 +3,7 @@
    A new version does not take over a running app. It waits until every
    tab is closed, so nobody gets swapped mid-station. */
 
-const APP_VERSION = "2026-09-13n";
+const APP_VERSION = "2026-09-13q";
 const CACHE = "fieldnotes-" + APP_VERSION;
 
 const SHELL = [
@@ -12,7 +12,8 @@ const SHELL = [
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
-  "./apple-touch-icon.png"
+  "./apple-touch-icon.png",
+  "./vrg.png"
 ];
 
 self.addEventListener("install", e=>{
