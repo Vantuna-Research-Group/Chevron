@@ -728,6 +728,11 @@ function buildAlarmWav(seconds){
 function startAlarm(offsetSeconds){
   stopAlarm();
   try{
+    // Ask for a playback session. Without this the ring/silent switch
+    // mutes the alarm, which is the default state on most field phones.
+    if(navigator.audioSession) navigator.audioSession.type = "playback";
+  }catch(e){}
+  try{
     alarmUrl = URL.createObjectURL(buildAlarmWav(SOAK_SECONDS));
     alarmEl = new Audio(alarmUrl);
     alarmEl.preload = "auto";
@@ -1127,6 +1132,17 @@ function openData(){
     state.pocketAlarm
       ? "Hearable with the phone away. Pauses music for "+SOAK_SECONDS+" s per station."
       : "Leaves music alone. Only fires if the app stays on screen."));
+
+  const test = document.createElement("button");
+  test.className = "listbtn";
+  test.style.cssText = "margin-top:8px;text-align:center;color:var(--kelp)";
+  test.innerHTML = "Test the alarm<small>Beeps in 10 seconds. Lock the phone and pocket it.</small>";
+  test.onclick = ()=>{
+    if(state.pocketAlarm) startAlarm(SOAK_SECONDS - 10);
+    else { primeBeep(); setTimeout(beep, 10000); }
+    toast("Beeps in 10 seconds");
+  };
+  ab.appendChild(test);
 
   const vb = document.getElementById("verBox");
   askVersion();
