@@ -67,6 +67,13 @@
     border:1px solid var(--line);background:var(--card);
     border-radius:8px;padding:8px 11px;font-size:14px;font-weight:600;
   }
+  .runrow{display:flex;gap:6px;padding:0 0 8px}
+  .runrow button{
+    flex:1;height:38px;border:1px solid var(--line);background:var(--card);border-radius:9px;
+    font-size:14px;font-weight:700;color:var(--muted);
+  }
+  .runrow button small{font-weight:600;margin-left:6px;font-variant-numeric:tabular-nums}
+  .runrow button.on{background:var(--kelp);border-color:var(--kelp);color:#fff}
   .rail{
     display:flex;gap:6px;overflow-x:auto;padding:0 0 10px;
     scrollbar-width:none;
@@ -307,6 +314,7 @@
         <button id="btnData">Data</button>
       </div>
     </div>
+    <div class="runrow" id="runRow" role="group" aria-label="Tide run"></div>
     <div class="rail" id="rail"></div>
   </div>
   <div class="datebanner" id="dateBanner"></div>
@@ -496,18 +504,96 @@ if(!state.skipped) state.skipped = {};
 if(!state.exports) state.exports = {};
 if(state.pocketAlarm === undefined) state.pocketAlarm = true;
 if(state.driftLimit === undefined) state.driftLimit = 50;   // metres
+if(!state.runs) state.runs = {};                              // date -> "Flood" | "Ebb"
+
+/* Records are keyed date|station|run. Water quality is done once on the
+   flood and once on the ebb, and a run never straddles a tide, so the run
+   is the tide. Older records were keyed date|station and are moved into
+   the run matching the tide they were saved with. */
+const RUNS = ["Flood","Ebb"];
+
+function migrateKeys(bag, tideFor){
+  Object.keys(bag).forEach(k=>{
+    const parts = k.split("|");
+    if(parts.length !== 2) return;
+    const run = RUNS.includes(tideFor(k, bag[k])) ? tideFor(k, bag[k]) : "Flood";
+    const nk = k + "|" + run;
+    if(!bag[nk]) bag[nk] = bag[k];
+    delete bag[k];
+  });
+}
+
+function majorityTide(date){
+  const n = {Flood:0, Ebb:0};
+  Object.keys(state.visits).forEach(k=>{
+    const [d,,r] = k.split("|");
+    if(d === date && n[r] !== undefined) n[r]++;
+  });
+  return n.Ebb > n.Flood ? "Ebb" : "Flood";
+}
+
+function migrateState(st){
+  migrateKeys(st.visits || {}, (k,v)=>v && v.tide);
+  migrateKeys(st.drafts || {}, (k,v)=>v && v.tide);
+  Object.keys(st.visits || {}).forEach(k=>{
+    const v = st.visits[k]; v.run = k.split("|")[2]; v.tide = v.run;
+  });
+}
+migrateState(state);
+migrateKeys(state.skipped, (k)=>majorityTide(k.split("|")[0]));
+Object.keys(state.visits).forEach(k=>{
+  const d = k.split("|")[0];
+  if(!state.runs[d]) state.runs[d] = majorityTide(d);
+});
+save();
 
 let cursor = 0;             // index into STATIONS
 let draft = null;
 
-function vkey(st){ return state.date + "|" + st; }
+/* The run for the date on screen. A date nobody has worked yet starts on
+   the tide predicted for right now, or Flood when that is not known. */
+function currentRun(){
+  if(!state.runs[state.date]) state.runs[state.date] = defaultRun(state.date);
+  return state.runs[state.date];
+}
+function defaultRun(date){
+  const now = new Date();
+  const iso = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+  if(date === iso){
+    const t = tideAt(date, nowTime());
+    if(t) return t;
+  }
+  return "Flood";
+}
+function dateHasWork(date){
+  const has = bag => Object.keys(bag).some(k=>k.startsWith(date+"|"));
+  return has(state.visits) || has(state.drafts) || has(state.skipped);
+}
+
+function vkey(st, run){ return state.date + "|" + st + "|" + (run || currentRun()); }
+
+function switchRun(run){
+  if(run === currentRun()) return;
+  commitDraftIfStarted();
+  state.runs[state.date] = run;
+  save();
+  // Land on the first station this run has not dealt with yet.
+  const i = STATIONS.findIndex(s=>{
+    const k = vkey(s.id);
+    return !state.visits[k] && !state.skipped[k];
+  });
+  cursor = i >= 0 ? i : 0;
+  loadDraft();
+  scrollTop();
+  toast(run + " run");
+}
 
 function blankDraft(st){
   const d = state.defaults;
   return {
     station: st,
     events: [],
-    swell: d.swell, wind: d.wind, cloud: d.cloud, tide: d.tide,
+    swell: d.swell, wind: d.wind, cloud: d.cloud, tide: currentRun(), run: currentRun(),
     flags: Object.assign({}, d.flags),
     counts: {},
     time: "",
@@ -542,6 +628,19 @@ function render(){
   document.getElementById("date").value = state.date;
   document.getElementById("crewSummary").textContent =
     state.crew.length ? (state.crew.length === 1 ? state.crew[0] : state.crew.length + " crew") : "no crew";
+
+  // tide run switch, with how far each run has got
+  const rr = document.getElementById("runRow");
+  rr.innerHTML = "";
+  RUNS.forEach(r=>{
+    const b = document.createElement("button");
+    const n = dayStatus(r).rec.length;
+    b.innerHTML = r + " run<small>" + n + "/" + STATIONS.length + "</small>";
+    b.setAttribute("aria-pressed", r === currentRun() ? "true" : "false");
+    if(r === currentRun()) b.className = "on";
+    b.onclick = ()=>switchRun(r);
+    rr.appendChild(b);
+  });
 
   // station rail
   const rail = document.getElementById("rail");
@@ -584,7 +683,7 @@ function render(){
   });
 
   // conditions
-  applyTide();
+  draft.tide = currentRun(); draft.run = currentRun();
   const c = document.getElementById("conds");
   c.innerHTML = "";
   c.appendChild(stepperRow("Sea swell","ft", draft.swell, 0, 20, 1, v=>{draft.swell=v;}));
@@ -594,18 +693,25 @@ function render(){
     c.appendChild(twoWayRow(f, ["No","Yes"], draft.flags[f], v=>{draft.flags[f]=v; render();}, true));
   });
 
-  // tide, shown with the time it is derived from
-  const auto = tideAt(state.date, draft.time);
-  let tideSub;
-  if(draft.tideManual) tideSub = "set by hand";
-  else if(auto) tideSub = "Santa Monica prediction at " + draft.time;
-  else if(!state.tides[state.date]) tideSub = "no tide table for this date";
-  else tideSub = "needs a station time";
+  // tide comes from the run. The NOAA prediction is a check on it.
+  const pred = tideAt(state.date, draft.time || (isToday(state.date) ? nowTime() : ""));
+  let tideSub, tideWarn = false;
+  if(!state.tides[state.date]) tideSub = "Set by the run switch. No tide table for this date.";
+  else if(!pred) tideSub = "Set by the run switch.";
+  else if(pred === currentRun())
+    tideSub = "Santa Monica prediction agrees" + (draft.time ? " at " + draft.time : " right now") + ".";
+  else {
+    tideSub = "Santa Monica predicts " + pred + (draft.time ? " at " + draft.time : " right now") +
+              ". Check the run switch.";
+    tideWarn = true;
+  }
   const tr = document.getElementById("tideRow");
   tr.innerHTML = "";
-  tr.appendChild(twoWayRow("Tide", ["Ebb","Flood"], draft.tide, v=>{
-    draft.tide = v; draft.tideManual = true; render();
-  }, false, tideSub));
+  const trow = document.createElement("div"); trow.className = "row";
+  trow.innerHTML = '<div class="lab"><span>Tide</span><small' +
+    (tideWarn ? ' style="color:var(--amber);font-weight:600"' : '') + '>' + tideSub +
+    '</small></div><div style="font-weight:700;font-size:19px">' + currentRun() + '</div>';
+  tr.appendChild(trow);
   const changed = condsDifferFromDefault();
   document.getElementById("carryHint").textContent = changed ? "changed here" : "carried from last station";
 
@@ -667,10 +773,10 @@ function render(){
 
 
 /* What is left to do today, so a missed station is visible before you leave. */
-function dayStatus(){
+function dayStatus(run){
   const rec = [], part = [], skip = [], todo = [];
   STATIONS.forEach(st=>{
-    const k = vkey(st.id);
+    const k = vkey(st.id, run);
     if(state.visits[k]) rec.push(st.id);
     else if(state.skipped[k]) skip.push(st.id);
     else if(state.drafts[k]) part.push(st.id);
@@ -682,7 +788,7 @@ function dayStatus(){
 function renderProgress(){
   const p = document.getElementById("progress");
   const d = dayStatus();
-  const bits = ["<b>"+d.rec.length+"</b> of "+STATIONS.length+" recorded"];
+  const bits = [currentRun() + " run, <b>"+d.rec.length+"</b> of "+STATIONS.length+" recorded"];
   if(d.part.length) bits.push("<b>"+d.part.length+"</b> started");
   if(d.skip.length) bits.push("<b>"+d.skip.length+"</b> not sampled");
   p.innerHTML = bits.join(", ");
@@ -837,13 +943,14 @@ async function fetchTides(dateIso, quiet){
       .map(p=>({ ms: parseNoaa(p.t), type: p.type, v: p.v }))
       .filter(p=>p.ms);
     state.tides[dateIso+"|fetched"] = Date.now();
+    if(!dateHasWork(dateIso)) state.runs[dateIso] = defaultRun(dateIso);
     save();
     if(!quiet) toast("Tides loaded for " + dateIso);
     render();
     return true;
   }catch(e){
     if(!quiet) alert("Could not load tides: " + e.message +
-      "\n\nPick Ebb or Flood by hand. The app will keep the manual value.");
+      "\n\nThe run switch at the top still sets the tide.");
     return false;
   }
 }
@@ -865,11 +972,9 @@ function tideAt(dateIso, hhmmss){
   return null;
 }
 
-/* Sets the tide from the table unless the user picked one by hand. */
-function applyTide(){
-  if(!draft || draft.tideManual) return;
-  const t = tideAt(state.date, draft.time);
-  if(t && t !== draft.tide){ draft.tide = t; }
+function isToday(date){
+  const n = new Date();
+  return date === n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0");
 }
 
 /* ------------------------------------------------------------------
@@ -1110,7 +1215,7 @@ function renderSoak(){
   if(!draft.events.includes("Water Quality")){ box.innerHTML = ""; return; }
 
   const s = state.soak;
-  const mine = s && s.station === st && s.date === state.date;
+  const mine = s && s.station === st && s.date === state.date && (s.run || "Flood") === currentRun();
   const left = mine ? SOAK_SECONDS - Math.floor((Date.now() - s.start)/1000) : null;
 
   box.innerHTML = "";
@@ -1127,9 +1232,15 @@ function renderSoak(){
     const go = document.createElement("button");
     go.textContent = "Start soak";
     go.onclick = ()=>{
+      // A soak rewrites the station time. On a station this run already has,
+      // that usually means the run switch was not changed for the second tide.
+      const prior = state.visits[vkey(st)];
+      if(prior && !confirm(st + " is already recorded in the " + currentRun() + " run at " +
+          (prior.time || "no time") + ".\n\nIf this is the other tide, cancel and use the run switch at the top." +
+          "\n\nReplace the " + currentRun() + " time?")) return;
       if(state.pocketAlarm) startAlarm(0); else primeBeep();
       holdScreen();
-      state.soak = {station:st, date:state.date, start:Date.now(), alerted:false};
+      state.soak = {station:st, date:state.date, run:currentRun(), start:Date.now(), alerted:false};
       draft.time = clockFromEpoch(state.soak.start);
       if(state.visits[vkey(st)]) state.visits[vkey(st)].time = draft.time;
       save(); render();
@@ -1194,7 +1305,8 @@ setInterval(()=>{
     if(navigator.vibrate) navigator.vibrate([200,100,200,100,400]);
     toast("Soak done at " + s.station);
   }
-  if(draft && draft.events.includes("Water Quality") && s.station === STATIONS[cursor].id){
+  if(draft && draft.events.includes("Water Quality") && s.station === STATIONS[cursor].id &&
+     (s.run || "Flood") === currentRun()){
     renderSoak();
   }
 }, 500);
@@ -1230,7 +1342,7 @@ document.getElementById("btnSave").onclick = ()=>{
   draft.comments = document.getElementById("comments").value.trim();
   const t = document.getElementById("time").value;
   draft.time = t ? (t.length === 5 ? t + ":00" : t) : nowTime();
-  applyTide();
+  draft.tide = currentRun(); draft.run = currentRun();
   draft.crew = state.crew.slice();
 
   if(draft.fix){
@@ -1255,7 +1367,7 @@ document.getElementById("btnSave").onclick = ()=>{
     flags:Object.assign({}, draft.flags)
   };
   save();
-  if(state.soak && state.soak.station === draft.station) { stopAlarm(); releaseScreen(); state.soak = null; save(); }
+  if(state.soak && state.soak.station === draft.station && (state.soak.run || "Flood") === draft.run) { stopAlarm(); releaseScreen(); state.soak = null; save(); }
   toast("Saved " + draft.station);
   next();
 };
@@ -1288,7 +1400,8 @@ document.getElementById("date").onchange = e=>{
 document.getElementById("comments").oninput = e=>{ draft.comments = e.target.value; };
 document.getElementById("time").onchange = e=>{
   draft.time = e.target.value ? (e.target.value.length===5 ? e.target.value+":00" : e.target.value) : "";
-  document.getElementById("timeHint").textContent = draft.time ? "recorded" : "set when you save";
+  draft.comments = document.getElementById("comments").value;
+  render();   // the tide check depends on the time
 };
 
 /* ------------------------------------------------------------------
@@ -1496,12 +1609,13 @@ function openData(){
   if(!keys.length){
     vl.innerHTML = '<p style="color:var(--muted)">No stations saved for this date yet.</p>';
   }
-  keys.sort(byRunOrder).forEach(k=>{
+  keys.sort(byRunThenOrder).forEach(k=>{
     const v = state.visits[k];
     const d = document.createElement("div"); d.className = "visit";
     const seen = Object.entries(v.counts||{}).filter(([,n])=>n>0)
                  .map(([s,n])=>n+" "+s).join(", ");
-    d.innerHTML = '<div class="v1"><b>'+v.station+'</b> <span style="color:var(--muted)">'+(v.time||"")+'</span>'+
+    d.innerHTML = '<div class="v1"><b>'+v.station+'</b> <span style="color:var(--muted)">'+
+                  (k.split("|")[2]||"")+' '+(v.time||"")+'</span>'+
                   '<small>'+v.events.join(", ")+(seen ? " and "+seen : "")+'</small></div>';
     const del = document.createElement("button");
     del.className = "del"; del.textContent = "Delete";
@@ -1521,7 +1635,7 @@ function openData(){
 
   // Has this date been exported since the last change?
   const es = document.getElementById("expStatus");
-  const recNow = dayStatus().rec.length;
+  const recNow = RUNS.reduce((n,r)=>n + dayStatus(r).rec.length, 0);
   const recAt  = state.exports[state.date];
   if(!recNow) es.textContent = "";
   else if(recAt === undefined){
@@ -1591,23 +1705,42 @@ function byRunOrder(a,b){
   return (ORDER[sa] ?? 99) - (ORDER[sb] ?? 99);
 }
 
+/* Earliest station time in a run, so the run worked first comes first. */
+function runStart(date, run){
+  let t = "99";
+  Object.keys(state.visits).forEach(k=>{
+    const [d,,r] = k.split("|");
+    if(d === date && r === run && state.visits[k].time && state.visits[k].time < t) t = state.visits[k].time;
+  });
+  return t;
+}
+function byRunThenOrder(a,b){
+  const [da,,ra] = a.split("|"), [db,,rb] = b.split("|");
+  if(da !== db) return da < db ? -1 : 1;
+  if(ra !== rb){
+    const ta = runStart(da,ra), tb = runStart(db,rb);
+    return ta === tb ? (ra < rb ? -1 : 1) : (ta < tb ? -1 : 1);
+  }
+  return byRunOrder(a,b);
+}
+
 function exportCsv(allDates){
   let keys = Object.keys(state.visits);
   if(!allDates) keys = keys.filter(k=>k.startsWith(state.date+"|"));
-  keys.sort((a,b)=>{
-    const da = a.split("|")[0], db = b.split("|")[0];
-    return da === db ? byRunOrder(a,b) : (da < db ? -1 : 1);
-  });
+  keys.sort(byRunThenOrder);
   if(!keys.length){ toast("Nothing to export"); return; }
 
   // Say what is missing before the file is written, while you can still go back.
+  // Only runs that were started are checked. A bacteria-only day has one run.
   if(!allDates){
-    const d = dayStatus();
-    const gaps = d.todo.concat(d.part);
-    if(gaps.length && !confirm(
-        gaps.length + " station" + (gaps.length>1?"s are":" is") + " not recorded for " +
-        state.date + ":\n\n" + gaps.join(", ") +
-        "\n\nExport anyway?")) return;
+    const lines = [];
+    RUNS.forEach(r=>{
+      const d = dayStatus(r);
+      if(!d.rec.length && !d.part.length && !d.skip.length) return;
+      const gaps = d.todo.concat(d.part);
+      if(gaps.length) lines.push(r + " run, " + gaps.length + " not recorded: " + gaps.join(", "));
+    });
+    if(lines.length && !confirm(lines.join("\n\n") + "\n\nExport anyway?")) return;
   }
 
   // Species columns: the two always-listed ones, then any other seen at least once today.
@@ -1644,7 +1777,7 @@ function exportCsv(allDates){
   download("FieldNotes_" + (allDates ? "all" : state.date) + "_" + state.deviceId + ".csv",
            csv, "text/csv");
   if(!allDates){
-    state.exports[state.date] = dayStatus().rec.length;
+    state.exports[state.date] = RUNS.reduce((n,r)=>n + dayStatus(r).rec.length, 0);
     save();
   }
 }
@@ -1671,10 +1804,13 @@ function importJson(e){
   r.onload = ()=>{
     try{
       const inc = JSON.parse(r.result);
+      inc.visits = inc.visits || {};
+      migrateState(inc);
       let added = 0, clashes = [];
       Object.entries(inc.visits||{}).forEach(([k,v])=>{
         if(state.visits[k]){
-          if(JSON.stringify(state.visits[k]) !== JSON.stringify(v)) clashes.push(k.split("|")[1]);
+          if(JSON.stringify(state.visits[k]) !== JSON.stringify(v))
+            clashes.push(k.split("|")[1] + " (" + k.split("|")[2] + ")");
         } else { state.visits[k] = v; added++; }
       });
       (inc.custom||[]).forEach(s=>{ if(!state.custom.includes(s)) state.custom.push(s); });
