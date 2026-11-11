@@ -1692,7 +1692,7 @@ function openData(){
 ------------------------------------------------------------------ */
 function csvCell(v){
   v = (v === null || v === undefined) ? "" : String(v);
-  return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+  return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
 }
 
 function usDate(iso){
@@ -1773,7 +1773,9 @@ function exportCsv(allDates){
     });
   });
 
-  const csv = rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  // Plain \n line endings. With \r\n, anything on the way that converts \n
+  // to \r\n leaves \r\r\n, which shows as a blank line between rows.
+  const csv = rows.map(r=>r.map(csvCell).join(",")).join("\n") + "\n";
   download("FieldNotes_" + (allDates ? "all" : state.date) + "_" + state.deviceId + ".csv",
            csv, "text/csv");
   if(!allDates){
